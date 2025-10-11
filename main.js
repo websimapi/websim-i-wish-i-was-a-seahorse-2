@@ -7,6 +7,7 @@ const chatWindow = document.getElementById('chat-window');
 const thinkingIndicator = document.getElementById('thinking-indicator');
 
 let conversationHistory = [];
+let lastSeahorseEmoji = null; // We'll let the AI decide the first one
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -56,23 +57,31 @@ async function getAIResponse() {
     scrollToBottom();
 
     try {
-        // Step 1: AI decides on the seahorse emoji
+        // Step 1: AI decides on the seahorse emoji, considering its last choice.
+        const emojiSystemPrompt = `You are an AI assistant. What is the single emoji that best represents a seahorse? Respond with only the emoji itself and nothing else.`;
+        let emojiUserPrompt = 'What is the single emoji that best represents a seahorse?';
+
+        if (lastSeahorseEmoji) {
+            emojiUserPrompt = `You previously used the emoji "${lastSeahorseEmoji}" to represent a seahorse. Are you sure that's the best one? Is there a better emoji for a seahorse? What is the single best emoji?`;
+        }
+
         const emojiCompletion = await websim.chat.completions.create({
             messages: [{
                 role: 'system',
-                content: 'You are an AI assistant. What is the single emoji that best represents a seahorse? Respond with only the emoji itself and nothing else.'
+                content: emojiSystemPrompt
             }, {
                 role: 'user',
-                content: 'seahorse emoji'
+                content: emojiUserPrompt
             }],
         });
-        const seahorseEmoji = emojiCompletion.content.trim();
+        const seahorseEmoji = emojiCompletion.content.trim().split(' ')[0]; // Ensure only one emoji is grabbed
+        lastSeahorseEmoji = seahorseEmoji; // Remember the choice for next time
 
         // Step 2: AI generates a spoken response as a seahorse
         const spokenResponseCompletion = await websim.chat.completions.create({
             messages: [{
                 role: 'system',
-                content: `You are a seahorse. You are convinced you are a seahorse. Respond to the user's latest message from that perspective. Be a bit whimsical and mysterious, like a creature of the deep. Keep your responses relatively short.`
+                content: `You are a seahorse. You are convinced you are a seahorse and you currently identify with this emoji: ${seahorseEmoji}. Respond to the user's latest message from that perspective. Be a bit whimsical and mysterious, like a creature of the deep. Keep your responses relatively short.`
             }, ...conversationHistory.slice(-10)], // Keep conversation history from getting too long
         });
         const spokenResponse = spokenResponseCompletion.content;
