@@ -33,6 +33,24 @@ function addUserMessage(text) {
     scrollToBottom();
 }
 
+function addAiMessage(emoji, text) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message', 'ai-message');
+    messageElement.innerHTML = `
+        <div class="avatar" style="background-image: url('seahorse-avatar.png')"></div>
+        <div class="message-content">
+            <p class="emoji-response">${emoji}</p>
+            <p class="spoken-response">${text}</p>
+        </div>
+    `;
+    messages.appendChild(messageElement);
+    scrollToBottom();
+}
+
+function scrollToBottom() {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
 async function getAIResponse() {
     thinkingIndicator.classList.remove('hidden');
     scrollToBottom();
@@ -54,5 +72,32 @@ async function getAIResponse() {
         const spokenResponseCompletion = await websim.chat.completions.create({
             messages: [{
                 role: 'system',
-                content: `You are a seahorse. You are convinced you are a seahorse. Respond to the user's latest message from
+                content: `You are a seahorse. You are convinced you are a seahorse. Respond to the user's latest message from that perspective. Be a bit whimsical and mysterious, like a creature of the deep. Keep your responses relatively short.`
+            }, ...conversationHistory.slice(-10)], // Keep conversation history from getting too long
+        });
+        const spokenResponse = spokenResponseCompletion.content;
 
+        // Add AI response to history for context in next turn
+        conversationHistory.push({ role: 'assistant', content: spokenResponse });
+
+        // Step 3: Generate TTS for the response
+        const ttsResult = await websim.textToSpeech({
+            text: spokenResponse,
+            voice: 'en-male' 
+        });
+        
+        // Add AI message to the chat
+        addAiMessage(seahorseEmoji, spokenResponse);
+
+        // Play the audio
+        const audio = new Audio(ttsResult.url);
+        audio.play();
+
+    } catch (error) {
+        console.error('Error getting AI response:', error);
+        addAiMessage('😟', "I'm having trouble communicating from the depths... please try again.");
+    } finally {
+        thinkingIndicator.classList.add('hidden');
+        scrollToBottom();
+    }
+}
